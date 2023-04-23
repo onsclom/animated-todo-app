@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>todo app</title>
+    <style>
+      html {
+        font-family: -apple-system, BlinkMacSystemFont, avenir next, avenir,
+          segoe ui, helvetica neue, helvetica, Cantarell, Ubuntu, roboto, noto,
+          arial, sans-serif;
+      }
+
+      main {
+        max-width: 40rem;
+        margin: 0 auto;
+      }
+
+      label {
+        display: flex;
+        box-sizing: border-box;
+        padding: 0.25rem;
+        display: block;
+        width: 100%;
+        margin-bottom: 0.25rem;
+      }
+
+      .todo {
+        display: flex;
+        justify-content: space-between;
+        background-color: #eee;
+      }
+
+      input[type="text"] {
+        box-sizing: border-box;
+        width: 100%;
+        padding: 0.5rem;
+        font-size: 1rem;
+      }
+
+      .hidden {
+        position: fixed;
+      }
+
+      .grid-column {
+        padding: 0.25rem;
+      }
+
+      .todo button {
+        opacity: 0;
+        transition: opacity 0.2s ease-in-out;
+      }
+
+      .todo:hover button {
+        opacity: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <form id="todo-form">
+        <input
+          type="text"
+          name="todo-input"
+          placeholder="what needs to be done?"
+          autocomplete="off"
+        />
+      </form>
+
+      <div style="display: grid; grid-template-columns: 50% 50%">
+        <div class="grid-column">
+          <h2>to do</h2>
+          <div id="todo-holder"></div>
+        </div>
+        <div class="grid-column">
+          <h2>done</h2>
+          <div id="done-holder"></div>
+        </div>
+      </div>
+
+      <template id="todo-template">
+        <label class="todo">
+          <div>
+            <input type="checkbox" name="todo-checkbox" />
+            <span></span>
+          </div>
+          <button style="justify-self: end">❌</button>
+        </label>
+      </template>
+    </main>
+
+    <script>
+      const todoForm = document.getElementById("todo-form")
+      const todoHolder = document.getElementById("todo-holder")
+      const doneHolder = document.getElementById("done-holder")
+      const todoTemplate = document.getElementById("todo-template")
+
+      const animate = (effect) => {
+        const startPositions = new Map()
+        document.querySelectorAll(".todo").forEach((todo) => {
+          const rect = todo.getBoundingClientRect()
+          startPositions.set(todo, {
+            x: rect.x,
+            y: rect.y,
+            width: rect.width,
+            height: rect.height,
+            backgroundColor: todo.style.backgroundColor,
+          })
+        })
+
+        const result = effect()
+        const toRemove = new Set(Array.isArray(result) ? result : [])
+        toRemove.forEach((todo) => (todo.style.position = "absolute"))
+        const todos = document.querySelectorAll(".todo")
+        const endPositions = new Map()
+        todos.forEach((todo) => {
+          if (toRemove.has(todo)) return
+          const rect = todo.getBoundingClientRect()
+          endPositions.set(todo, {
+            x: rect.x,
+            y: rect.y,
+            width: rect.width,
+            height: rect.height,
+            backgroundColor: todo.style.backgroundColor,
+          })
+        })
+
+        todos.forEach((todo) => {
+          if (toRemove.has(todo)) {
+            todo.style.width = startPositions.get(todo).width + "px"
+            todo.style.height = startPositions.get(todo).height + "px"
+            todo.animate(
+              [{ transform: "none" }, { transform: `scale(0, 0)` }],
+              {
+                duration: 300,
+                easing: "ease-in-out",
+                fill: "forwards",
+              }
+            ).onfinish = () => todo.remove()
+          } else if (endPositions.has(todo) && !startPositions.has(todo)) {
+            todo.animate(
+              [{ transform: `scale(0, 0)` }, { transform: "none" }],
+              {
+                duration: 300,
+                easing: "ease-in-out",
+                fill: "forwards",
+              }
+            )
+          } else {
+            todo.animate(
+              [
+                {
+                  transform: `translate(${
+                    startPositions.get(todo).x - endPositions.get(todo).x
+                  }px, ${
+                    startPositions.get(todo).y - endPositions.get(todo).y
+                  }px)`,
+                  backgroundColor: startPositions.get(todo).backgroundColor,
+                },
+                {
+                  transform: "none",
+                  backgroundColor: endPositions.get(todo).backgroundColor,
+                },
+              ],
+              {
+                duration: 300,
+                easing: "ease-in-out",
+                fill: "forwards",
+              }
+            )
+          }
+        })
+      }
+
+      const todo = (text) => {
+        const todo = todoTemplate.cloneNode(true).content.firstElementChild
+        todo.querySelector("span").textContent = text
+        todo.querySelector("button").onclick = () => {
+          animate(() => [todo])
+        }
+        todo.querySelector("input").onchange = (e) => {
+          todo.classList.toggle("done")
+          animate(() => {
+            if (e.target.checked) {
+              todo.style.backgroundColor = "#afa"
+              doneHolder.appendChild(todo)
+            } else {
+              todo.style.backgroundColor = "#eee"
+              todoHolder.appendChild(todo)
+            }
+          })
+        }
+        return todo
+      }
+
+      todoForm.onsubmit = (e) => {
+        e.preventDefault()
+        const formData = new FormData(todoForm)
+        const todoText = formData.get("todo-input")
+        animate(() => todoHolder.appendChild(todo(todoText)))
+        todoForm.reset()
+      }
+    </script>
+  </body>
+</html>
